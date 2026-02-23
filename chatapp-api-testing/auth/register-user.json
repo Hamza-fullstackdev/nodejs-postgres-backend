@@ -1,0 +1,21 @@
+{
+  "name": "register-user",
+  "rank": "auntit17718342926331",
+  "request": {
+    "type": "http",
+    "url": "http://localhost:5000/api/v1/auth/register",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": ""
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [],
+    "body": "{\n  \"username\": \"johndoe\",\n  \"email\":\"john@gmail.com\",\n  \"password\": \"johndoe123\"\n}",
+    "contentType": "application/json",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

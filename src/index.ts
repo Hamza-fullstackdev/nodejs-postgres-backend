@@ -18,7 +18,7 @@ const limiter = rateLimit({
   },
 });
 
-app.set('trust proxy', true);
+// app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -40,6 +40,10 @@ app.use(
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
 );
+
+import router from './routes/index.js';
+
+app.use('/api/v1', router);
 
 app.listen(config.PORT, () => {
   console.log(`Server is running on PORT: ${config.PORT}`);
