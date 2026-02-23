@@ -19,7 +19,7 @@ export const comparePassword = async (
   return isMatch;
 };
 
-export const generateJWT = (id: number) => {
+export const generateJWT = (id: number): string => {
   const secret = config.JWT_SECRET;
 
   if (!secret) {
