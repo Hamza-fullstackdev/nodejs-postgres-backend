@@ -1,12 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { LoginInput, RegisterInput, User } from '../types/auth.js';
 import errorHandler from '../utils/app-error.js';
-import { loginSchema, registerSchema } from '../schemas/auth.js';
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+} from '../schemas/auth.js';
 import db from '../config/connection.js';
 import { comparePassword, generateJWT, hashPassword } from '../utils/auth.js';
 import { sendEmail } from '../config/smtp.js';
 import { nanoid } from 'nanoid';
 import { config } from '../config/env.config.js';
+import crypto from 'node:crypto';
 
 export const register = async (
   req: Request,
@@ -159,6 +164,60 @@ export const logout = async (
     res.status(200).json({
       success: true,
       message: 'Logout successful',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    const errorMessage =
+      parsed.error.issues[0]?.message ?? 'Invalid request data';
+    return next(errorHandler(400, errorMessage));
+  }
+
+  const { email } = parsed.data;
+
+  try {
+    const isUserExist = await db.query('SELECT * FROM users WHERE email = $1', [
+      email,
+    ]);
+    if (!isUserExist.rowCount || isUserExist.rowCount < 1) {
+      return next(
+        errorHandler(400, "Sorry we can't find this email in out records"),
+      );
+    }
+    const user: User = isUserExist.rows[0];
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000);
+
+    await db.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
+      [hashedToken, resetTokenExpiry, user.email],
+    );
+
+    const resetLink = `${config.UI_BASE_URL}/reset-password/${resetToken}`;
+    await sendEmail({
+      to: email,
+      subject: 'Password Reset',
+      text: `Reset your password using this link: ${resetLink}`,
+    });
+
+    res.status(200).json({
+      message:
+        'A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.',
     });
   } catch (error) {
     next(error);
