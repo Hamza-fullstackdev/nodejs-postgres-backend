@@ -205,7 +205,7 @@ export const verifyEmail = async (
     }
 
     const updateUser = await db.query(
-      'UPDATE users SET is_verified = $1, is_active = $2 verify_token = $3, verify_token_expiry = $4 WHERE email = $5 AND verify_token = $6 RETURNING id',
+      'UPDATE users SET is_verified = $1, is_active = $2, verify_token = $3, verify_token_expiry = $4 WHERE email = $5 AND verify_token = $6 RETURNING id',
       [true, true, null, null, email, token],
     );
     if (!updateUser.rowCount || updateUser.rowCount < 1) {
@@ -217,6 +217,7 @@ export const verifyEmail = async (
     res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
     next(error);
+    console.log(error);
   }
 };
 
@@ -269,6 +270,46 @@ export const forgetPassword = async (
       message:
         'A password reset link has been sent to your email. Please check your inbox and follow the instructions to reset your password.',
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const rawToken = req.params.token;
+  const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+  const { password } = req.body as { password?: string };
+
+  if (!token || !password) {
+    return next(errorHandler(400, 'Token and new password are required'));
+  }
+
+  try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const userResult = await db.query<User>(
+      'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expiry > $2',
+      [hashedToken, new Date(Date.now())],
+    );
+
+    if (!userResult.rowCount || userResult.rowCount < 1) {
+      return next(errorHandler(400, 'Invalid or expired token'));
+    }
+
+    const user = userResult.rows[0] as User;
+
+    const hashedPassword = await hashPassword(password);
+
+    await db.query(
+      'UPDATE users SET password = $1, reset_token = $2, reset_token_expiry = $3 WHERE id = $4',
+      [hashedPassword, null, null, user.id],
+    );
+
+    res.status(200).json({ message: 'Password reset successful.' });
   } catch (error) {
     next(error);
   }
