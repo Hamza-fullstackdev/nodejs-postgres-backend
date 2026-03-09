@@ -18,7 +18,7 @@ const limiter = rateLimit({
   },
 });
 
-// app.set('trust proxy', true);
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
